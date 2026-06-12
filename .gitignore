@@ -1,0 +1,25 @@
+# Node dependencies
+commute-share/node_modules/
+
+# Expo build artifacts and cache
+commute-share/.expo/
+commute-share/.expo-shared/
+commute-share/dist/
+commute-share/web-build/
+
+# Environment variables — contain Supabase credentials
+commute-share/.env.local
+commute-share/.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python venv (BMAD installer — not app code, see CLAUDE.md)
+bmad_project1/
+
+# OS artifacts
+.DS_Store
+Thumbs.db

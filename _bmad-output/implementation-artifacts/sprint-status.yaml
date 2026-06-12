@@ -1,0 +1,53 @@
+# Sprint / Goal Status Tracker
+# Updated: 2026-06-12
+
+current_goal: 2
+current_goal_title: "Driver route setup"
+workflow_step: "not-started"
+workflow_position: "Goal 1 complete — Goal 2 not yet started"
+
+last_completed_goal: 1
+last_completed_goal_title: "User Auth & Verification — Email/Password + Username Registration"
+last_completed_spec: "_bmad-output/implementation-artifacts/spec-user-auth-verification.md"
+spec_status: "done"  # draft | in-review | done
+
+# What is done for Goal 1
+completed:
+  - "Tech stack selected: React Native + Expo SDK 56 + Supabase"
+  - "Auth approach decided: email+password, email OTP verification, username as display handle"
+  - "Spec written (iteration 2) — after phone-OTP approach was rejected"
+  - "Review loop 1 completed — 15+ issues found, all patches incorporated into spec"
+  - "Supabase migrations implemented: 001_profiles.sql (username-based), 002_driver_verifications.sql"
+  - "All screens implemented: register, verify-email, login, role, profile, licence, home"
+  - "9 review patches applied — AC-7 routing fix, mimeType fix, null-user guard, localStorage guard, etc."
+  - "npx tsc --noEmit passes clean"
+  - "Old phone+SMS OTP screens deleted (phone.tsx, otp.tsx)"
+
+# What is blocked / waiting
+blocked: []
+
+# What comes next
+next_steps:
+  - "Start Goal 2 — Driver route setup (Maps API, corridor definition, detour tolerance)"
+  - "Run /bmad-quick-dev to begin Goal 2 spec"
+
+# Deferred goals (see deferred-work.md for details)
+deferred:
+  - goal: 2
+    title: "Driver route setup"
+    notes: "Maps API, corridor definition, detour tolerance, route posting UX"
+  - goal: 3
+    title: "Passenger ride discovery"
+    notes: "Corridor matching engine, ride browsing, map visualization"
+  - goal: 4
+    title: "Ride booking & scheduling"
+    notes: "Recurring + ad-hoc, trusted-pair fast-track, deposits, cancellation windows"
+  - goal: 5
+    title: "Payment system"
+    notes: "Stripe, wallet, 5% cut, multi-passenger discount"
+  - goal: 6
+    title: "Communication & safety"
+    notes: "In-app chat, panic button, post-confirmation phone exchange"
+  - goal: 7
+    title: "Ratings & reputation"
+    notes: "3-point scale, multi-dimensional, blue-check unlock"
