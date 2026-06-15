@@ -55,9 +55,12 @@ export default function RoleScreen() {
       return;
     }
 
+    const username = (user.user_metadata?.username as string) ?? '';
+    const phone = (user.user_metadata?.phone as string) ?? null;
+
     const { error: upsertError } = await supabase
       .from('profiles')
-      .upsert({ id: user.id, role: selected }, { onConflict: 'id' });
+      .upsert({ id: user.id, username, phone, role: selected }, { onConflict: 'id' });
 
     setLoading(false);
 
