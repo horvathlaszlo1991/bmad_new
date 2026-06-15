@@ -4,51 +4,86 @@
 current_goal: 3
 current_goal_title: "Passenger ride discovery"
 workflow_step: "not-started"
-workflow_position: "Goal 2 complete — Goal 3 not yet started"
+workflow_position: "Goals 1+2 complete and live-tested — Goal 3 not yet started"
 
 last_completed_goal: 2
 last_completed_goal_title: "Driver Route Setup — Google Maps integration, corridor definition"
 last_completed_spec: "_bmad-output/implementation-artifacts/spec-goal-2-driver-route-setup.md"
-spec_status: "done"  # draft | in-review | done
+spec_status: "done"
 
 # What is done for Goal 2
 completed:
-  - "Supabase migration 003_routes.sql — routes table with RLS (owner-only SELECT/INSERT/UPDATE/DELETE)"
-  - "lib/routes.ts — getMyRoutes, createRoute, deleteRoute (soft-delete), fetchRouteDetails (Directions API)"
+  - "Supabase migration 003_routes.sql — routes table with RLS (owner-only CRUD)"
+  - "lib/routes.ts — getMyRoutes, createRoute, deleteRoute (soft-delete), fetchRouteDetails"
   - "app.config.js — dynamic Expo config injecting EXPO_PUBLIC_GOOGLE_MAPS_API_KEY at build time"
-  - "app.json reverted — no longer contains literal env-var strings or duplicate Maps config"
   - "app/(app)/_layout.tsx — Routes tab added with map-outline Ionicons icon"
-  - "app/(app)/routes/_layout.tsx — Stack navigator for routes sub-screens"
-  - "app/(app)/routes/index.tsx — route list, passenger role guard, empty state, useFocusEffect, day labels M/Tu/W/Th/F/Sa/Su"
-  - "app/(app)/routes/new.tsx — Places autocomplete (HTTP, debounced 400ms, stale-request guard), detour_tolerance_min auto-calc (20% of route duration), MapView platform guard, HH:MM validation, canSave guard"
-  - ".env.example updated with EXPO_PUBLIC_GOOGLE_MAPS_API_KEY"
+  - "app/(app)/routes/index.tsx — route list, passenger role guard, empty state"
+  - "app/(app)/routes/new.tsx — Places autocomplete, route preview, detour tolerance, schedule"
   - "3-reviewer review loop completed — 13 patches applied"
   - "npx tsc --noEmit passes clean"
-  - "Deferred items logged in deferred-work.md (G2-SEC-1, G2-D-1 through G2-D-4)"
-  - "Committed as 54cd363 — feat: Goal 2 — driver route setup with Google Maps integration"
+  - "Committed as 54cd363"
+
+# Post-Goals 1+2 bug fixes applied during live testing (2026-06-15)
+post_goal_fixes:
+  - fix: "app.json output changed to 'single' — fixes Node 20 WebSocket crash on npm run web"
+    commit: "7dad892"
+
+  - fix: "Google API endpoints migrated from legacy to new versions"
+    detail: >
+      Places API (New): POST places.googleapis.com/v1/places:autocomplete and
+      GET places.googleapis.com/v1/places/{id} with X-Goog-Api-Key header.
+      Routes API: POST routes.googleapis.com/directions/v2:computeRoutes.
+      routingPreference removed (400 on demo keys). Field mask: routes.polyline
+      (not routes.overviewPolyline). Duration parsing: parseInt('1234s') / 60.
+    commits: "448846f, bab1ba9, eb0ab20"
+
+  - fix: "Email verification changed from OTP code to confirmation link"
+    detail: >
+      verify-email.tsx is now a static waiting screen with resend button.
+      Profile creation moved to _layout.tsx — fires on first confirmed sign-in
+      (email_confirmed_at set, no profile row). email_confirmed_at guard prevents
+      unconfirmed sessions from advancing past verify-email.
+    commit: "cc3c159"
+
+  - fix: "role.tsx upsert includes username+phone from user_metadata"
+    detail: >
+      Prevents NOT NULL violation on username when profile row is absent at role
+      selection time (e.g. user registered before _layout.tsx profile-creation
+      logic was deployed).
+    commit: "2c71988"
+
+  - fix: "Dev user seed corrected — dashboard-only password creation required"
+    detail: >
+      PostgreSQL crypt() produces $2a$ bcrypt; Supabase Auth requires $2b$.
+      Seed script now only inserts the profile row. User must be created via
+      Supabase dashboard: Authentication → Users → Add user → Auto Confirm User.
+      Credentials: dev@commuteshare.local / Dev1234! (role: both).
+      Login screen shows amber Dev Login button in __DEV__ mode.
+    commit: "dbbb969"
 
 # What is blocked / waiting
 blocked: []
 
 # What comes next
 next_steps:
-  - "Start Goal 3 — Passenger ride discovery (corridor-based matching, ride browsing, map viz)"
+  - "Start Goal 3 — Passenger ride discovery"
   - "Run /bmad-quick-dev to begin Goal 3 spec"
 
-# Key Goal 2 design decisions
-goal_2_decisions:
-  - "Corridor stored as: origin/dest lat-lng + encoded Google Directions overview_polyline + detour_tolerance_km (spatial) + detour_tolerance_min (temporal)"
-  - "detour_tolerance_min default = Math.max(1, Math.round(durationMin * 0.2)); fallback 10 if Directions API fails"
-  - "schedule_days stored as int[] [1..7] (1=Mon, 7=Sun); displayed as M/Tu/W/Th/F/Sa/Su"
-  - "Cross-platform autocomplete via HTTP fetch to Places API (not native library)"
-  - "MapView gated behind Platform.OS !== 'web'; web shows text fallback"
-  - "Soft-delete pattern: deleteRoute sets status='deleted'; queries filter .neq('status','deleted')"
+# Key decisions (Goals 1+2)
+key_decisions:
+  - "Google Maps: must use Places API (New) + Routes API (New) — legacy endpoints not in key's allowed list"
+  - "Email auth: confirmation link flow (not OTP). Profile created in _layout.tsx on first confirmed sign-in"
+  - "Corridor: origin/dest lat-lng + encoded polyline (routes.polyline.encodedPolyline) + detour_tolerance_km + detour_tolerance_min"
+  - "detour_tolerance_min = Math.max(1, Math.round(durationMin * 0.2)); fallback 10 if Routes API fails"
+  - "schedule_days as int[] [1..7]; displayed M/Tu/W/Th/F/Sa/Su"
+  - "Web output: 'single' (not 'static') — required for Node 20 CORS/WebSocket compatibility"
+  - "app.config.js injects EXPO_PUBLIC_GOOGLE_MAPS_API_KEY; app.json stays static"
 
-# Deferred goals (see deferred-work.md for details)
+# Deferred goals
 deferred:
   - goal: 3
     title: "Passenger ride discovery"
-    notes: "Corridor-based matching engine (uses both detour_tolerance_km and detour_tolerance_min from routes), ride browsing, map visualization of active corridors, smart filtering (best 2-3 of 20+ matches)"
+    notes: "Corridor matching engine (detour_tolerance_km + detour_tolerance_min from routes), ride browsing, map viz, smart filtering"
   - goal: 4
     title: "Ride booking & scheduling"
     notes: "Recurring + ad-hoc, trusted-pair fast-track, deposits, cancellation windows"

@@ -45,7 +45,7 @@ Expo Router file-based routing with three route groups:
 ### Lib Layer (`lib/`)
 
 - `supabase.ts` — Supabase client singleton. Uses `expo-secure-store` on native, `localStorage` on web (with `typeof localStorage` guard for SSR safety). Reads `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` from env.
-- `auth.ts` — Auth wrappers: `register(username, email, password, phone)`, `login(email, password)`, `verifyEmailOtp(email, token)`, `resendVerificationEmail(email)`, `signOut()`.
+- `auth.ts` — Auth wrappers: `register(username, email, password, phone)`, `login(email, password)`, `resendVerificationEmail(email)`, `signOut()`. (`verifyEmailOtp` exists but is unused — email verification uses confirmation links, not OTP codes.)
 
 ### Database (`supabase/migrations/`)
 
@@ -54,21 +54,31 @@ Expo Router file-based routing with three route groups:
 
 ### Auth & Onboarding Flow
 
-Registration: `register.tsx` (username + email + password + phone) → `verify-email.tsx` (email OTP, 10 min, 3-attempt lock; profiles row inserted here after OTP success) → `role.tsx` → `profile.tsx` (avatar upload) → `licence.tsx` (drivers only) → `(app)/index.tsx`.
+Registration: `register.tsx` (username + email + password + phone) → `verify-email.tsx` (static "click the link" waiting screen; navigates automatically when Supabase fires `onAuthStateChange`) → `role.tsx` → `profile.tsx` (avatar upload) → `licence.tsx` (drivers only) → `(app)/index.tsx`.
+
+Profile creation: happens in `app/_layout.tsx` on the first confirmed sign-in (`email_confirmed_at` present, no profile row yet) — reads `username` and `phone` from `user_metadata` set during `signUp`. The role screen also does a full upsert including `username`+`phone` as a safety net.
 
 Login: `login.tsx` (email + password) → root layout queries `profiles.role` → routes to `(app)` or `(auth)/role` if onboarding incomplete.
 
 ## Current Implementation Status
 
-**Goal 1 (Auth & Onboarding) is complete.** All screens implemented, TypeScript clean, review patches applied.
+**Goal 1 (Auth & Onboarding) is complete.** All screens implemented, TypeScript clean.
 
-Auth strategy: email + password + username (display handle). Email OTP for verification. Phone collected at registration but SMS-verified later (Goal 2+). Old phone+SMS OTP screens deleted.
+Auth strategy: email + password + username (display handle). Email confirmation link (not OTP code) for verification. Phone collected at registration but SMS-verified later. Profile row created in `_layout.tsx` on first confirmed sign-in.
 
-Full spec and acceptance criteria: `_bmad-output/implementation-artifacts/spec-user-auth-verification.md` (status: done)
+Full spec: `_bmad-output/implementation-artifacts/spec-user-auth-verification.md` (status: done)
 
-**Goal 2 (Driver Route Setup) is complete.** Routes tab added; Google Places autocomplete, Directions API polyline, detour tolerance (km + auto-calculated min), schedule, Supabase CRUD — all implemented. TypeScript clean, review patches applied.
+**Goal 2 (Driver Route Setup) is complete.** Routes tab, Google Places autocomplete, route polyline preview, detour tolerance, schedule, Supabase CRUD — all implemented and live-tested.
 
-Full spec and acceptance criteria: `_bmad-output/implementation-artifacts/spec-goal-2-driver-route-setup.md` (status: done)  
+Full spec: `_bmad-output/implementation-artifacts/spec-goal-2-driver-route-setup.md` (status: done)
+
+**Post-Goals 1–2 bug fixes applied (2026-06-15):**
+- `app.json` web output changed to `"single"` — fixes Node 20 WebSocket crash on `npm run web`
+- Google API endpoints migrated to new versions: Places API (New) at `places.googleapis.com`, Routes API at `routes.googleapis.com`. Legacy `maps.googleapis.com/maps/api/...` endpoints removed. `routingPreference` removed (caused 400 on demo keys). Field mask fixed: `routes.polyline` not `routes.overviewPolyline`.
+- Email verification changed from OTP code entry to confirmation link — `verify-email.tsx` is now a static waiting screen; `_layout.tsx` creates profile on confirmed sign-in.
+- `role.tsx` upsert now includes `username`+`phone` from `user_metadata` — prevents NOT NULL violation when profile row is absent.
+- Dev user added: `dev@commuteshare.local` / `Dev1234!` (role: both). Created via Supabase dashboard → Auth → Add user → Auto Confirm. Profile inserted via `supabase/seeds/dev_user.sql`. Login screen shows ⚡ Dev Login button in `__DEV__` mode.
+
 Implementation-level deferred items: `_bmad-output/implementation-artifacts/deferred-work.md`  
 **Next goal:** Goal 3 — Passenger ride discovery (corridor-based matching engine, ride browsing, map visualization).
 
