@@ -53,24 +53,42 @@ function RootLayoutNav() {
       return;
     }
 
-    // Always query profile to verify onboarding completeness, even if already in (app)
-    supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', session.user.id)
-      .maybeSingle()
-      .then(({ data: profile, error }) => {
-        if (error) return;
-        if (profile?.role) {
-          if (!inAppGroup) router.replace('/(app)');
-        } else {
-          const onboardingScreens = ['role', 'profile', 'licence'];
-          const currentScreen = (segments as string[])[1] ?? '';
-          if (!inAuthGroup || !onboardingScreens.includes(currentScreen)) {
-            router.replace('/(auth)/role');
-          }
+    // Email not confirmed yet — keep user on verify-email, don't advance
+    if (!session.user.email_confirmed_at) return;
+
+    async function handleSession() {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session!.user.id)
+        .maybeSingle();
+
+      if (error) return;
+
+      if (!profile) {
+        // First confirmed sign-in — create profile from registration metadata
+        const username = (session!.user.user_metadata?.username as string) ?? '';
+        const phone = (session!.user.user_metadata?.phone as string) ?? null;
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({ id: session!.user.id, username, phone });
+        if (insertError) return;
+        router.replace('/(auth)/role');
+        return;
+      }
+
+      if (profile.role) {
+        if (!inAppGroup) router.replace('/(app)');
+      } else {
+        const onboardingScreens = ['role', 'profile', 'licence'];
+        const currentScreen = (segments as string[])[1] ?? '';
+        if (!inAuthGroup || !onboardingScreens.includes(currentScreen)) {
+          router.replace('/(auth)/role');
         }
-      });
+      }
+    }
+
+    handleSession();
   }, [session, segments, router]);
 
   return <Slot />;
