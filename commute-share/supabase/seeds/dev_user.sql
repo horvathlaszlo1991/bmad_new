@@ -2,51 +2,22 @@
 -- Credentials: dev@commuteshare.local / Dev1234!
 -- Role: both (can see driver Routes tab AND passenger features)
 --
--- Run once in Supabase SQL Editor. Safe to re-run (skips if email already exists).
+-- NOTE: This script cannot set the password correctly from SQL because
+-- Supabase Auth requires $2b$ bcrypt format which differs from PostgreSQL's crypt().
+-- Use this script ONLY if you have already created the user via the Supabase dashboard
+-- (Authentication → Users → Add user → Auto Confirm User) and just need the profile row.
+--
+-- Full setup steps:
+-- 1. Supabase dashboard → Authentication → Users → Add user → Create new user
+--    Email: dev@commuteshare.local  Password: Dev1234!  ✓ Auto Confirm User
+-- 2. Run this script to insert the matching profile row.
 
-do $$
-declare
-  dev_uid uuid;
-begin
-  -- Skip if already exists
-  if exists (select 1 from auth.users where email = 'dev@commuteshare.local') then
-    raise notice 'Dev user already exists — skipping.';
-    return;
-  end if;
-
-  dev_uid := gen_random_uuid();
-
-  insert into auth.users (
-    id, instance_id, aud, role,
-    email, encrypted_password, email_confirmed_at,
-    raw_app_meta_data, raw_user_meta_data,
-    is_super_admin, created_at, updated_at
-  ) values (
-    dev_uid,
-    '00000000-0000-0000-0000-000000000000',
-    'authenticated', 'authenticated',
-    'dev@commuteshare.local',
-    crypt('Dev1234!', gen_salt('bf')),
-    now(),
-    '{"provider":"email","providers":["email"]}'::jsonb,
-    '{}'::jsonb,
-    false, now(), now()
+insert into public.profiles (id, username, phone, role)
+select id, 'devuser', '+36201234567', 'both'
+from auth.users
+where email = 'dev@commuteshare.local'
+  and not exists (
+    select 1 from public.profiles p
+    join auth.users u on u.id = p.id
+    where u.email = 'dev@commuteshare.local'
   );
-
-  insert into auth.identities (
-    id, user_id, provider_id, provider,
-    identity_data, last_sign_in_at, created_at, updated_at
-  ) values (
-    gen_random_uuid(),
-    dev_uid,
-    'dev@commuteshare.local',
-    'email',
-    jsonb_build_object('sub', dev_uid::text, 'email', 'dev@commuteshare.local'),
-    now(), now(), now()
-  );
-
-  insert into public.profiles (id, username, phone, role)
-  values (dev_uid, 'devuser', '+36201234567', 'both');
-
-  raise notice 'Dev user created: dev@commuteshare.local / Dev1234!';
-end $$;
