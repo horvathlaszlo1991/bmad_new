@@ -76,7 +76,7 @@ export async function fetchRouteDetails(
     headers: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': apiKey,
-      'X-Goog-FieldMask': 'routes.duration,routes.overviewPolyline',
+      'X-Goog-FieldMask': 'routes.duration,routes.polyline',
     },
     body: JSON.stringify({
       origin: { location: { latLng: { latitude: origin.lat, longitude: origin.lng } } },
@@ -93,7 +93,7 @@ export async function fetchRouteDetails(
   type RoutesResponse = {
     routes: Array<{
       duration: string; // e.g. "1234s"
-      overviewPolyline: { encodedPolyline: string };
+      polyline: { encodedPolyline: string };
     }>;
   };
 
@@ -104,7 +104,7 @@ export async function fetchRouteDetails(
   }
 
   const route = json.routes[0];
-  const polyline = route.overviewPolyline.encodedPolyline;
+  const polyline = route.polyline.encodedPolyline;
   const durationMin = Math.round(parseInt(route.duration, 10) / 60);
 
   return { polyline, durationMin };
