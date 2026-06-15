@@ -37,7 +37,7 @@ Budapest-first launch. Mission-driven, not greed-driven: 5% platform cut, no sur
 | # | Goal | Status | Spec |
 |---|---|---|---|
 | 1 | User auth & verification | **Done** | `_bmad-output/implementation-artifacts/spec-user-auth-verification.md` |
-| 2 | Driver route setup | Deferred | `_bmad-output/implementation-artifacts/deferred-work.md` |
+| 2 | Driver route setup | **Done** | `_bmad-output/implementation-artifacts/spec-goal-2-driver-route-setup.md` |
 | 3 | Passenger ride discovery | Deferred | `_bmad-output/implementation-artifacts/deferred-work.md` |
 | 4 | Ride booking & scheduling | Deferred | `_bmad-output/implementation-artifacts/deferred-work.md` |
 | 5 | Payment system | Deferred | `_bmad-output/implementation-artifacts/deferred-work.md` |
@@ -57,6 +57,19 @@ Budapest-first launch. Mission-driven, not greed-driven: 5% platform cut, no sur
 - Session storage: `expo-secure-store` on native, `localStorage` on web
 
 **Rationale for phone OTP deferral:** Supabase phone OTP (Twilio) is a paid service; also, Supabase doesn't return "already registered" errors for phone OTP — it silently sends OTP to any number, making the duplicate-phone error scenario unreachable with that approach.
+
+## Goal 2 — Driver Route Setup Design Decisions
+
+**Completed 2026-06-15 (commit 54cd363):**
+
+- **Corridor representation:** origin/dest lat-lng + Google Directions `overview_polyline` (encoded text) + `detour_tolerance_km` (spatial corridor width) + `detour_tolerance_min` (max acceptable duration increase). Both tolerances needed for Goal 3 matching.
+- **detour_tolerance_min default:** `Math.max(1, Math.round(durationMin * 0.2))` — 20% of route's actual driving duration; fallback 10 min if Directions API fails.
+- **schedule_days encoding:** `int[]` with 1=Mon…7=Sun (e.g. `[1,2,3,4,5]` for Mon–Fri). Displayed as M/Tu/W/Th/F/Sa/Su. Goal 4 uses this to generate recurring ride slots.
+- **Cross-platform autocomplete:** Direct HTTP `fetch` to Google Places Autocomplete + Place Details endpoints (no native library). Works on iOS, Android, web.
+- **MapView platform guard:** `react-native-maps` has no web support; all `MapView`/`Polyline` JSX wrapped in `Platform.OS !== 'web'`; web shows text "Origin → Destination" fallback.
+- **app.config.js vs app.json:** `app.json` is static and cannot interpolate env vars. `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` is injected at build time via `app.config.js` (dynamic Expo config). Never put `$VAR` literals in `app.json`.
+- **Soft-delete:** `deleteRoute` sets `status='deleted'`; list queries filter `.neq('status','deleted')`. Hard delete deferred.
+- **Key file: `commute-share/lib/routes.ts`** — `fetchRouteDetails` returns `{ polyline, durationMin }` used by both the form preview and Goal 3 matching.
 
 ## Key Product Decisions from Brainstorming
 

@@ -1,44 +1,54 @@
 # Sprint / Goal Status Tracker
-# Updated: 2026-06-12
+# Updated: 2026-06-15
 
-current_goal: 2
-current_goal_title: "Driver route setup"
+current_goal: 3
+current_goal_title: "Passenger ride discovery"
 workflow_step: "not-started"
-workflow_position: "Goal 1 complete — Goal 2 not yet started"
+workflow_position: "Goal 2 complete — Goal 3 not yet started"
 
-last_completed_goal: 1
-last_completed_goal_title: "User Auth & Verification — Email/Password + Username Registration"
-last_completed_spec: "_bmad-output/implementation-artifacts/spec-user-auth-verification.md"
+last_completed_goal: 2
+last_completed_goal_title: "Driver Route Setup — Google Maps integration, corridor definition"
+last_completed_spec: "_bmad-output/implementation-artifacts/spec-goal-2-driver-route-setup.md"
 spec_status: "done"  # draft | in-review | done
 
-# What is done for Goal 1
+# What is done for Goal 2
 completed:
-  - "Tech stack selected: React Native + Expo SDK 56 + Supabase"
-  - "Auth approach decided: email+password, email OTP verification, username as display handle"
-  - "Spec written (iteration 2) — after phone-OTP approach was rejected"
-  - "Review loop 1 completed — 15+ issues found, all patches incorporated into spec"
-  - "Supabase migrations implemented: 001_profiles.sql (username-based), 002_driver_verifications.sql"
-  - "All screens implemented: register, verify-email, login, role, profile, licence, home"
-  - "9 review patches applied — AC-7 routing fix, mimeType fix, null-user guard, localStorage guard, etc."
+  - "Supabase migration 003_routes.sql — routes table with RLS (owner-only SELECT/INSERT/UPDATE/DELETE)"
+  - "lib/routes.ts — getMyRoutes, createRoute, deleteRoute (soft-delete), fetchRouteDetails (Directions API)"
+  - "app.config.js — dynamic Expo config injecting EXPO_PUBLIC_GOOGLE_MAPS_API_KEY at build time"
+  - "app.json reverted — no longer contains literal env-var strings or duplicate Maps config"
+  - "app/(app)/_layout.tsx — Routes tab added with map-outline Ionicons icon"
+  - "app/(app)/routes/_layout.tsx — Stack navigator for routes sub-screens"
+  - "app/(app)/routes/index.tsx — route list, passenger role guard, empty state, useFocusEffect, day labels M/Tu/W/Th/F/Sa/Su"
+  - "app/(app)/routes/new.tsx — Places autocomplete (HTTP, debounced 400ms, stale-request guard), detour_tolerance_min auto-calc (20% of route duration), MapView platform guard, HH:MM validation, canSave guard"
+  - ".env.example updated with EXPO_PUBLIC_GOOGLE_MAPS_API_KEY"
+  - "3-reviewer review loop completed — 13 patches applied"
   - "npx tsc --noEmit passes clean"
-  - "Old phone+SMS OTP screens deleted (phone.tsx, otp.tsx)"
+  - "Deferred items logged in deferred-work.md (G2-SEC-1, G2-D-1 through G2-D-4)"
+  - "Committed as 54cd363 — feat: Goal 2 — driver route setup with Google Maps integration"
 
 # What is blocked / waiting
 blocked: []
 
 # What comes next
 next_steps:
-  - "Start Goal 2 — Driver route setup (Maps API, corridor definition, detour tolerance)"
-  - "Run /bmad-quick-dev to begin Goal 2 spec"
+  - "Start Goal 3 — Passenger ride discovery (corridor-based matching, ride browsing, map viz)"
+  - "Run /bmad-quick-dev to begin Goal 3 spec"
+
+# Key Goal 2 design decisions
+goal_2_decisions:
+  - "Corridor stored as: origin/dest lat-lng + encoded Google Directions overview_polyline + detour_tolerance_km (spatial) + detour_tolerance_min (temporal)"
+  - "detour_tolerance_min default = Math.max(1, Math.round(durationMin * 0.2)); fallback 10 if Directions API fails"
+  - "schedule_days stored as int[] [1..7] (1=Mon, 7=Sun); displayed as M/Tu/W/Th/F/Sa/Su"
+  - "Cross-platform autocomplete via HTTP fetch to Places API (not native library)"
+  - "MapView gated behind Platform.OS !== 'web'; web shows text fallback"
+  - "Soft-delete pattern: deleteRoute sets status='deleted'; queries filter .neq('status','deleted')"
 
 # Deferred goals (see deferred-work.md for details)
 deferred:
-  - goal: 2
-    title: "Driver route setup"
-    notes: "Maps API, corridor definition, detour tolerance, route posting UX"
   - goal: 3
     title: "Passenger ride discovery"
-    notes: "Corridor matching engine, ride browsing, map visualization"
+    notes: "Corridor-based matching engine (uses both detour_tolerance_km and detour_tolerance_min from routes), ride browsing, map visualization of active corridors, smart filtering (best 2-3 of 20+ matches)"
   - goal: 4
     title: "Ride booking & scheduling"
     notes: "Recurring + ad-hoc, trusted-pair fast-track, deposits, cancellation windows"
