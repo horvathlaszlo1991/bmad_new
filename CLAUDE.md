@@ -64,9 +64,13 @@ Login: `login.tsx` (email + password) → root layout queries `profiles.role` �
 
 Auth strategy: email + password + username (display handle). Email OTP for verification. Phone collected at registration but SMS-verified later (Goal 2+). Old phone+SMS OTP screens deleted.
 
-Full spec and acceptance criteria: `_bmad-output/implementation-artifacts/spec-user-auth-verification.md` (status: done)  
+Full spec and acceptance criteria: `_bmad-output/implementation-artifacts/spec-user-auth-verification.md` (status: done)
+
+**Goal 2 (Driver Route Setup) is complete.** Routes tab added; Google Places autocomplete, Directions API polyline, detour tolerance (km + auto-calculated min), schedule, Supabase CRUD — all implemented. TypeScript clean, review patches applied.
+
+Full spec and acceptance criteria: `_bmad-output/implementation-artifacts/spec-goal-2-driver-route-setup.md` (status: done)  
 Implementation-level deferred items: `_bmad-output/implementation-artifacts/deferred-work.md`  
-**Next goal:** Goal 2 — Driver route setup (Maps API, corridor definition).
+**Next goal:** Goal 3 — Passenger ride discovery (corridor-based matching engine, ride browsing, map visualization).
 
 ## Planning Artifacts
 

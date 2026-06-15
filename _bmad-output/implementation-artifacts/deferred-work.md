@@ -51,3 +51,17 @@ blue-check progressive unlock tied to ride count and profile completeness.
 **M-3** — Duplicate email detection uses undocumented `identities.length === 0` sentinel. Replace when Supabase exposes an official error code.
 
 **ENV** — env-var assertion fires in prod builds too. Non-fatal; tighten to `throw` in dev only when convenient.
+
+---
+
+## Implementation-Level Deferred Items (Goal 2 review)
+
+**G2-SEC-1** — Google Maps API key sent in client-side HTTP requests (Places, Directions). By design for mobile Maps API; restrict the key in Google Console (bundle ID / SHA-1 fingerprint). A server-side proxy (Supabase Edge Function) would fully protect the key but is out of scope until abuse is observed.
+
+**G2-D-1** — `deleteRoute` performs a soft-delete but returns no indication of 0-row updates (silent if called for a non-owned route). RLS handles the actual protection. Add a count check when a delete UI is added in a later goal.
+
+**G2-D-2** — `expo-location` installed but not yet used. Will be imported in Goal 3+ for "use my current location" autocomplete shortcut.
+
+**G2-D-3** — Origin = destination not validated client-side. The Directions API error path handles it (routeError shown, save blocked). Add explicit UX feedback in a later polish pass.
+
+**G2-D-4** — `decodePolyline` does not guard against malformed encoded strings (could produce NaN coordinates). Trust the Directions API for now; add validation if corruption is observed in production.
