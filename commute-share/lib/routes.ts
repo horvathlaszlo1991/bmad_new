@@ -82,12 +82,12 @@ export async function fetchRouteDetails(
       origin: { location: { latLng: { latitude: origin.lat, longitude: origin.lng } } },
       destination: { location: { latLng: { latitude: dest.lat, longitude: dest.lng } } },
       travelMode: 'DRIVE',
-      routingPreference: 'TRAFFIC_AWARE',
     }),
   });
 
   if (!res.ok) {
-    throw new Error(`Routes API HTTP error: ${res.status}`);
+    const body = await res.text();
+    throw new Error(`Routes API ${res.status}: ${body}`);
   }
 
   type RoutesResponse = {
