@@ -48,50 +48,54 @@ const HH_MM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const PLACES_BASE = 'https://maps.googleapis.com/maps/api/place';
-
 async function fetchSuggestions(input: string): Promise<PlaceSuggestion[]> {
   const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
-  const url =
-    `${PLACES_BASE}/autocomplete/json?input=${encodeURIComponent(input)}` +
-    `&types=geocode&key=${encodeURIComponent(apiKey)}`;
 
-  const res = await fetch(url);
+  const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': apiKey,
+    },
+    body: JSON.stringify({ input, includedPrimaryTypes: ['geocode'] }),
+  });
+
   if (!res.ok) return [];
 
   type AutocompleteResponse = {
-    status: string;
-    predictions: Array<{ place_id: string; description: string }>;
+    suggestions?: Array<{
+      placePrediction: { placeId: string; text: { text: string } };
+    }>;
   };
 
   const json: AutocompleteResponse = await res.json();
-  if (json.status !== 'OK') return [];
-
-  return json.predictions.map((p) => ({
-    placeId: p.place_id,
-    description: p.description,
+  return (json.suggestions ?? []).map((s) => ({
+    placeId: s.placePrediction.placeId,
+    description: s.placePrediction.text.text,
   }));
 }
 
 async function resolvePlace(placeId: string): Promise<LatLng> {
   const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
-  const url =
-    `${PLACES_BASE}/details/json?place_id=${encodeURIComponent(placeId)}` +
-    `&fields=geometry&key=${encodeURIComponent(apiKey)}`;
 
-  const res = await fetch(url);
+  const res = await fetch(
+    `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`,
+    {
+      headers: {
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': 'location',
+      },
+    },
+  );
+
   if (!res.ok) throw new Error(`Place Details HTTP error: ${res.status}`);
 
   type PlaceDetailsResponse = {
-    status: string;
-    result: { geometry: { location: { lat: number; lng: number } } };
+    location: { latitude: number; longitude: number };
   };
 
   const json: PlaceDetailsResponse = await res.json();
-  if (json.status !== 'OK') throw new Error(`Place Details status: ${json.status}`);
-
-  const { lat, lng } = json.result.geometry.location;
-  return { lat, lng };
+  return { lat: json.location.latitude, lng: json.location.longitude };
 }
 
 // ─── Sub-component: AddressInput ─────────────────────────────────────────────
@@ -252,6 +256,8 @@ export default function NewRoute() {
         const results = await fetchSuggestions(text);
         if (reqId !== originReqId.current) return; // stale
         setOriginSuggestions(results);
+      } catch {
+        setOriginSuggestions([]);
       } finally {
         setOriginLoading(false);
       }
@@ -276,6 +282,8 @@ export default function NewRoute() {
         const results = await fetchSuggestions(text);
         if (reqId !== destReqId.current) return; // stale
         setDestSuggestions(results);
+      } catch {
+        setDestSuggestions([]);
       } finally {
         setDestLoading(false);
       }

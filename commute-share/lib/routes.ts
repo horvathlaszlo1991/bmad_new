@@ -58,7 +58,7 @@ export async function deleteRoute(routeId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-// ─── Google Directions API ────────────────────────────────────────────────────
+// ─── Google Routes API (New) ──────────────────────────────────────────────────
 
 type RouteDetails = {
   polyline: string;
@@ -70,39 +70,42 @@ export async function fetchRouteDetails(
   dest: LatLng,
 ): Promise<RouteDetails> {
   const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
-  const url =
-    `https://maps.googleapis.com/maps/api/directions/json` +
-    `?origin=${origin.lat},${origin.lng}` +
-    `&destination=${dest.lat},${dest.lng}` +
-    `&mode=driving` +
-    `&key=${encodeURIComponent(apiKey)}`;
 
-  const res = await fetch(url);
+  const res = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': apiKey,
+      'X-Goog-FieldMask': 'routes.duration,routes.overviewPolyline',
+    },
+    body: JSON.stringify({
+      origin: { location: { latLng: { latitude: origin.lat, longitude: origin.lng } } },
+      destination: { location: { latLng: { latitude: dest.lat, longitude: dest.lng } } },
+      travelMode: 'DRIVE',
+      routingPreference: 'TRAFFIC_AWARE',
+    }),
+  });
+
   if (!res.ok) {
-    throw new Error(`Directions API HTTP error: ${res.status}`);
+    throw new Error(`Routes API HTTP error: ${res.status}`);
   }
 
-  type DirectionsResponse = {
-    status: string;
+  type RoutesResponse = {
     routes: Array<{
-      overview_polyline: { points: string };
-      legs: Array<{ duration: { value: number } }>;
+      duration: string; // e.g. "1234s"
+      overviewPolyline: { encodedPolyline: string };
     }>;
   };
 
-  const json: DirectionsResponse = await res.json();
+  const json: RoutesResponse = await res.json();
 
-  if (json.status !== 'OK' || !json.routes.length) {
-    throw new Error(`Directions API returned status: ${json.status}`);
-  }
-
-  if (!json.routes[0].legs?.length) {
-    throw new Error('Directions API returned a route with no legs');
+  if (!json.routes?.length) {
+    throw new Error('Routes API returned no routes');
   }
 
   const route = json.routes[0];
-  const polyline = route.overview_polyline.points;
-  const durationMin = Math.round(route.legs[0].duration.value / 60);
+  const polyline = route.overviewPolyline.encodedPolyline;
+  const durationMin = Math.round(parseInt(route.duration, 10) / 60);
 
   return { polyline, durationMin };
 }
