@@ -51,6 +51,8 @@ Expo Router file-based routing with three route groups:
 
 - `001_profiles.sql` — `public.profiles`: id (FK → auth.users), username (unique not null), phone (unique), avatar_url, role (driver/passenger/both), created_at. Full RLS: users touch only their own row. Includes `check_availability(field_name, field_value)` SECURITY DEFINER RPC callable by anon for pre-signup uniqueness checks.
 - `002_driver_verifications.sql` — `public.driver_verifications`: licence_storage_path, verification_status (pending/approved/rejected). RLS: users insert only; service-role updates status. Also creates `avatars` (public) and `licences` (private) Storage buckets.
+- `003_routes.sql` — `public.routes`: driver_id (FK → profiles), origin/dest lat-lng + addresses, route_polyline (encoded), detour_tolerance_km (int, default 5), detour_tolerance_min (int, default 10), departure_time (time), schedule_days (int[], 1=Mon…7=Sun), status (active/paused/deleted). RLS: owner-only (all four operations check `auth.uid() = driver_id`).
+- `004_routes_rls_passenger.sql` — **NOT YET APPLIED** (Goal 3). Adds SELECT policy: `status = 'active' AND driver_id != auth.uid()` so passengers can discover other drivers' active routes.
 
 ### Auth & Onboarding Flow
 
@@ -79,8 +81,23 @@ Full spec: `_bmad-output/implementation-artifacts/spec-goal-2-driver-route-setup
 - `role.tsx` upsert now includes `username`+`phone` from `user_metadata` — prevents NOT NULL violation when profile row is absent.
 - Dev user added: `dev@commuteshare.local` / `Dev1234!` (role: both). Created via Supabase dashboard → Auth → Add user → Auto Confirm. Profile inserted via `supabase/seeds/dev_user.sql`. Login screen shows ⚡ Dev Login button in `__DEV__` mode.
 
-Implementation-level deferred items: `_bmad-output/implementation-artifacts/deferred-work.md`  
-**Next goal:** Goal 3 — Passenger ride discovery (corridor-based matching engine, ride browsing, map visualization).
+Implementation-level deferred items: `_bmad-output/implementation-artifacts/deferred-work.md`
+
+**Goal 3 (Passenger Ride Discovery) — spec approved, ready for implementation.**
+
+Spec: `_bmad-output/implementation-artifacts/spec-goal-3-passenger-ride-discovery.md` (status: ready-for-dev)
+
+What Goal 3 will build:
+- `supabase/migrations/004_routes_rls_passenger.sql` — RLS SELECT policy for passenger discovery
+- `lib/matching.ts` — Google Encoded Polyline decoder, Haversine distance, corridor match predicate (`matchesPassengerCorridor`)
+- `lib/routes.ts` — add `getActiveRoutesForDiscovery(userId)` function
+- `app/(app)/discover/index.tsx` — new "Find Rides" screen: Places autocomplete origin+dest, Search button, client-side corridor filtering, results list
+- `app/(app)/_layout.tsx` — add third "Find Rides" tab (`search-outline` icon)
+
+Key design decisions locked in spec:
+- Matching: point-proximity Haversine (both origin AND dest within `detour_tolerance_km` of nearest polyline vertex). Client-side. No PostGIS.
+- No map visualization, no driver name join, no schedule filter, no booking action — all deferred to Goal 4+.
+- Resume implementation: run `/bmad-quick-dev` and it will route directly to step-03 (implement) from the ready-for-dev spec.
 
 ## Planning Artifacts
 

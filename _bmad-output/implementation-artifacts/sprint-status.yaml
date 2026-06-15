@@ -3,13 +3,17 @@
 
 current_goal: 3
 current_goal_title: "Passenger ride discovery"
-workflow_step: "not-started"
-workflow_position: "Goals 1+2 complete and live-tested — Goal 3 not yet started"
+workflow_step: "ready-for-dev"
+workflow_position: "Spec approved — implementation not yet started"
 
 last_completed_goal: 2
 last_completed_goal_title: "Driver Route Setup — Google Maps integration, corridor definition"
 last_completed_spec: "_bmad-output/implementation-artifacts/spec-goal-2-driver-route-setup.md"
 spec_status: "done"
+
+# Goal 3 spec
+current_spec: "_bmad-output/implementation-artifacts/spec-goal-3-passenger-ride-discovery.md"
+current_spec_status: "ready-for-dev"
 
 # What is done for Goal 2
 completed:
@@ -66,8 +70,8 @@ blocked: []
 
 # What comes next
 next_steps:
-  - "Start Goal 3 — Passenger ride discovery"
-  - "Run /bmad-quick-dev to begin Goal 3 spec"
+  - "Implement Goal 3 — run /bmad-quick-dev, it will detect the ready-for-dev spec and route to step-03 (implement)"
+  - "Goal 3 tasks in order: 004 migration → lib/matching.ts → lib/routes.ts → discover/index.tsx → _layout.tsx"
 
 # Key decisions (Goals 1+2)
 key_decisions:
@@ -79,11 +83,17 @@ key_decisions:
   - "Web output: 'single' (not 'static') — required for Node 20 CORS/WebSocket compatibility"
   - "app.config.js injects EXPO_PUBLIC_GOOGLE_MAPS_API_KEY; app.json stays static"
 
+# Key decisions (Goal 3 spec — locked in spec-goal-3-passenger-ride-discovery.md)
+goal_3_decisions:
+  - "Matching: client-side point-proximity Haversine — both origin AND dest within detour_tolerance_km of nearest polyline vertex"
+  - "No PostGIS, no server-side matching"
+  - "No map visualization (deferred per user), no social proof map (deferred), no schedule filter (deferred)"
+  - "No driver profile join — route cards show address/time/days/tolerance only; driver name in Goal 4"
+  - "New RLS policy on routes: USING (status = 'active' AND driver_id != auth.uid()) — ORed with existing owner policy"
+  - "Find Rides tab added as third tab (search-outline icon); placed after Routes tab"
+
 # Deferred goals
 deferred:
-  - goal: 3
-    title: "Passenger ride discovery"
-    notes: "Corridor matching engine (detour_tolerance_km + detour_tolerance_min from routes), ride browsing, map viz, smart filtering"
   - goal: 4
     title: "Ride booking & scheduling"
     notes: "Recurring + ad-hoc, trusted-pair fast-track, deposits, cancellation windows"
@@ -96,3 +106,11 @@ deferred:
   - goal: 7
     title: "Ratings & reputation"
     notes: "3-point scale, multi-dimensional, blue-check unlock"
+
+# Deferred within Goal 3 (locked in spec)
+goal_3_deferred:
+  - "Map visualization of matched corridors"
+  - "Social proof / unauthenticated discovery screen"
+  - "Schedule-day / time-of-day filter UI"
+  - "Driver name display (requires profiles RLS change — deferred to Goal 4)"
+  - "Tap-to-book action on result cards (Goal 4)"
