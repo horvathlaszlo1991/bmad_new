@@ -148,6 +148,24 @@ export default function LoginScreen() {
             <Text style={styles.registerLinkBold}>Create an account</Text>
           </Text>
         </Pressable>
+
+        {__DEV__ && (
+          <Pressable
+            style={styles.devButton}
+            onPress={async () => {
+              clearError();
+              setLoading(true);
+              const result = await login('dev@commuteshare.local', 'Dev1234!');
+              setLoading(false);
+              if (result.error) setError(result.error);
+              else router.replace('/(app)');
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Dev login"
+          >
+            <Text style={styles.devButtonText}>⚡ Dev Login</Text>
+          </Pressable>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -174,4 +192,6 @@ const styles = StyleSheet.create({
   registerLink: { alignItems: 'center', marginTop: 20 },
   registerLinkText: { fontSize: 15, color: '#666' },
   registerLinkBold: { color: '#2563eb', fontWeight: '600' },
+  devButton: { alignItems: 'center', marginTop: 24, paddingVertical: 10, borderRadius: 8, borderWidth: 1.5, borderColor: '#f59e0b', backgroundColor: '#fffbeb' },
+  devButtonText: { color: '#b45309', fontSize: 14, fontWeight: '700' },
 });
