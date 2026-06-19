@@ -14,6 +14,10 @@ bmad_new/
 
 All application development happens inside `commute-share/`. Run all npm/expo commands from that directory.
 
+## Environment Note
+
+**Windows Python**: Use `python` (not `python3`) — `python3` is not mapped on this machine.
+
 ## Commands (run from `commute-share/`)
 
 ```bash
@@ -21,10 +25,12 @@ npx expo start            # Dev server (prompts for platform)
 npm run web               # expo start --web  (primary dev target)
 npm run android           # expo start --android
 npm run ios               # expo start --ios
-npx tsc --noEmit          # Type-check (no test runner configured)
+npx tsc --noEmit          # Type-check
+npm test                  # Run Jest unit tests
+npm run test:watch        # Jest in watch mode
 ```
 
-No ESLint config and no Jest setup exist yet.
+No ESLint config.
 
 ## Expo Version Note
 
@@ -52,7 +58,7 @@ Expo Router file-based routing with three route groups:
 - `001_profiles.sql` — `public.profiles`: id (FK → auth.users), username (unique not null), phone (unique), avatar_url, role (driver/passenger/both), created_at. Full RLS: users touch only their own row. Includes `check_availability(field_name, field_value)` SECURITY DEFINER RPC callable by anon for pre-signup uniqueness checks.
 - `002_driver_verifications.sql` — `public.driver_verifications`: licence_storage_path, verification_status (pending/approved/rejected). RLS: users insert only; service-role updates status. Also creates `avatars` (public) and `licences` (private) Storage buckets.
 - `003_routes.sql` — `public.routes`: driver_id (FK → profiles), origin/dest lat-lng + addresses, route_polyline (encoded), detour_tolerance_km (int, default 5), detour_tolerance_min (int, default 10), departure_time (time), schedule_days (int[], 1=Mon…7=Sun), status (active/paused/deleted). RLS: owner-only (all four operations check `auth.uid() = driver_id`).
-- `004_routes_rls_passenger.sql` — **NOT YET APPLIED** (Goal 3). Adds SELECT policy: `status = 'active' AND driver_id != auth.uid()` so passengers can discover other drivers' active routes.
+- `004_routes_rls_passenger.sql` — Adds SELECT policy: `status = 'active' AND driver_id != auth.uid()` so passengers can discover other drivers' active routes. Applied to Supabase (Goal 3).
 
 ### Auth & Onboarding Flow
 
@@ -83,21 +89,24 @@ Full spec: `_bmad-output/implementation-artifacts/spec-goal-2-driver-route-setup
 
 Implementation-level deferred items: `_bmad-output/implementation-artifacts/deferred-work.md`
 
-**Goal 3 (Passenger Ride Discovery) — spec approved, ready for implementation.**
+**Goal 3 (Passenger Ride Discovery) is complete.** Find Rides tab, Places autocomplete origin+dest, client-side Haversine corridor matching, results list — all implemented, reviewed, and live-tested.
 
-Spec: `_bmad-output/implementation-artifacts/spec-goal-3-passenger-ride-discovery.md` (status: ready-for-dev)
+Full spec: `_bmad-output/implementation-artifacts/spec-goal-3-passenger-ride-discovery.md` (status: done, commit: 854bf79)
 
-What Goal 3 will build:
-- `supabase/migrations/004_routes_rls_passenger.sql` — RLS SELECT policy for passenger discovery
-- `lib/matching.ts` — Google Encoded Polyline decoder, Haversine distance, corridor match predicate (`matchesPassengerCorridor`)
-- `lib/routes.ts` — add `getActiveRoutesForDiscovery(userId)` function
-- `app/(app)/discover/index.tsx` — new "Find Rides" screen: Places autocomplete origin+dest, Search button, client-side corridor filtering, results list
-- `app/(app)/_layout.tsx` — add third "Find Rides" tab (`search-outline` icon)
+Key additions:
+- `supabase/migrations/004_routes_rls_passenger.sql` — RLS SELECT policy (applied to Supabase)
+- `lib/matching.ts` — Google Encoded Polyline decoder, Haversine distance, `matchesPassengerCorridor`
+- `lib/routes.ts` — `getActiveRoutesForDiscovery(userId)`
+- `app/(app)/discover/index.tsx` — Find Rides screen with four render states
+- `app/(app)/_layout.tsx` — third tab (`search-outline`)
 
-Key design decisions locked in spec:
-- Matching: point-proximity Haversine (both origin AND dest within `detour_tolerance_km` of nearest polyline vertex). Client-side. No PostGIS.
-- No map visualization, no driver name join, no schedule filter, no booking action — all deferred to Goal 4+.
-- Resume implementation: run `/bmad-quick-dev` and it will route directly to step-03 (implement) from the ready-for-dev spec.
+**Unit tests added (Goal 3, commit 37b673e):**
+
+Jest is configured (`jest.config.js`, `ts-jest`, `node` environment). Run with `npm test`.
+
+- `__tests__/matching.test.ts` — 23 tests covering all four exports in `lib/matching.ts` (decodePolyline, haversineKm, minDistanceToPolylineKm, matchesPassengerCorridor). All passing.
+
+**Testing requirement (from Goal 3 onward): every implementation goal must include unit tests for all new pure logic (lib/ functions, utilities, algorithms).** Tests are part of the definition of done and must pass before a goal is marked complete.
 
 ## Planning Artifacts
 

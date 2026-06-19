@@ -20,6 +20,10 @@ export type Route = {
   created_at: string;
 };
 
+export type RouteWithDriver = Route & {
+  profiles: { username: string };
+};
+
 export type RouteInsert = Omit<Route, 'id' | 'created_at'>;
 
 export type LatLng = { lat: number; lng: number };
@@ -49,15 +53,15 @@ export async function createRoute(payload: RouteInsert): Promise<Route> {
   return data as Route;
 }
 
-export async function getActiveRoutesForDiscovery(userId: string): Promise<Route[]> {
+export async function getActiveRoutesForDiscovery(userId: string): Promise<RouteWithDriver[]> {
   const { data, error } = await supabase
     .from('routes')
-    .select('*')
+    .select('*, profiles!driver_id(username)')
     .eq('status', 'active')
     .neq('driver_id', userId);
 
   if (error) throw new Error(error.message);
-  return (data ?? []) as Route[];
+  return (data ?? []) as RouteWithDriver[];
 }
 
 export async function deleteRoute(routeId: string): Promise<void> {

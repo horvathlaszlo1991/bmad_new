@@ -11,8 +11,14 @@ import {
 } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
-import { getActiveRoutesForDiscovery, type LatLng, type Route } from '@/lib/routes';
+import { getActiveRoutesForDiscovery, type LatLng, type RouteWithDriver } from '@/lib/routes';
 import { matchesPassengerCorridor } from '@/lib/matching';
+import {
+  getMyBookingsAsPassenger,
+  validateBookingRequest,
+  createBookingRequest,
+  type BookingStatus,
+} from '@/lib/bookings';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -210,7 +216,13 @@ export default function DiscoverScreen() {
   // ── Search state ─────────────────────────────────────────────────────────
   const [searchState, setSearchState] = useState<SearchState>('idle');
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [results, setResults] = useState<Route[]>([]);
+  const [results, setResults] = useState<RouteWithDriver[]>([]);
+
+  // ── Booking state ─────────────────────────────────────────────────────────
+  // Map from route_id → booking status (or undefined if no booking)
+  const [bookingMap, setBookingMap] = useState<Map<string, BookingStatus>>(new Map());
+  // Track in-flight booking requests to prevent double-tap
+  const [requestingRouteId, setRequestingRouteId] = useState<string | null>(null);
 
   // ── Debounce timers ──────────────────────────────────────────────────────
   const originTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -320,9 +332,20 @@ export default function DiscoverScreen() {
 
       if (!user) throw new Error('Not authenticated');
 
-      const allRoutes = await getActiveRoutesForDiscovery(user.id);
+      // Load routes and existing bookings in parallel
+      const [allRoutes, myBookings] = await Promise.all([
+        getActiveRoutesForDiscovery(user.id),
+        getMyBookingsAsPassenger(user.id),
+      ]);
 
       if (reqId !== searchReqId.current) return; // stale
+
+      // Build booking status map keyed by route_id
+      const newMap = new Map<string, BookingStatus>();
+      for (const booking of myBookings) {
+        newMap.set(booking.route_id, booking.status);
+      }
+      setBookingMap(newMap);
 
       const origin: LatLng = { lat: originPlace.lat, lng: originPlace.lng };
       const dest: LatLng = { lat: destPlace.lat, lng: destPlace.lng };
@@ -338,6 +361,59 @@ export default function DiscoverScreen() {
       setSearchError(err instanceof Error ? err.message : 'Search failed. Please try again.');
       setSearchState('error');
     }
+  }
+
+  // ── Booking handler ───────────────────────────────────────────────────────
+
+  async function handleRequestRide(route: RouteWithDriver) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const validation = validateBookingRequest(user.id, route);
+    if (!validation.valid) return;
+
+    setRequestingRouteId(route.id);
+
+    const originalStatus = bookingMap.get(route.id);
+
+    // Optimistic update
+    setBookingMap((prev) => new Map(prev).set(route.id, 'pending'));
+
+    const { error } = await createBookingRequest(route.id, route.driver_id);
+
+    if (error) {
+      // Roll back optimistic update on failure
+      setBookingMap((prev) => {
+        const next = new Map(prev);
+        if (originalStatus !== undefined) {
+          next.set(route.id, originalStatus);
+        } else {
+          next.delete(route.id);
+        }
+        return next;
+      });
+    }
+
+    setRequestingRouteId(null);
+  }
+
+  // ── Helpers for button rendering ─────────────────────────────────────────
+
+  function getButtonLabel(routeId: string): string {
+    const status = bookingMap.get(routeId);
+    if (!status) return 'Request Ride';
+    if (status === 'pending') return 'Pending';
+    if (status === 'confirmed') return 'Confirmed';
+    if (status === 'declined') return 'Request Again';
+    return 'Request Ride';
+  }
+
+  function isButtonDisabled(routeId: string): boolean {
+    const status = bookingMap.get(routeId);
+    if (requestingRouteId === routeId) return true;
+    return status === 'pending' || status === 'confirmed';
   }
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -415,24 +491,54 @@ export default function DiscoverScreen() {
           <Text style={styles.resultsHeader}>
             {results.length} ride{results.length !== 1 ? 's' : ''} found
           </Text>
-          {results.map((route) => (
-            <View key={route.id} style={styles.card}>
-              <Text style={styles.cardOrigin} numberOfLines={1}>
-                {route.origin_address}
-              </Text>
-              <Text style={styles.cardArrow}>↓</Text>
-              <Text style={styles.cardDest} numberOfLines={1}>
-                {route.destination_address}
-              </Text>
-              <View style={styles.cardMeta}>
-                <Text style={styles.metaText}>{daysLabel(route.schedule_days)}</Text>
-                <Text style={styles.metaDivider}>·</Text>
-                <Text style={styles.metaText}>{formatTime(route.departure_time)}</Text>
-                <Text style={styles.metaDivider}>·</Text>
-                <Text style={styles.metaText}>±{route.detour_tolerance_km} km</Text>
+          {results.map((route) => {
+            const buttonLabel = getButtonLabel(route.id);
+            const buttonDisabled = isButtonDisabled(route.id);
+            return (
+              <View key={route.id} style={styles.card}>
+                <Text style={styles.cardOrigin} numberOfLines={1}>
+                  {route.origin_address}
+                </Text>
+                <Text style={styles.cardArrow}>↓</Text>
+                <Text style={styles.cardDest} numberOfLines={1}>
+                  {route.destination_address}
+                </Text>
+                <Text style={styles.cardDriver} numberOfLines={1}>
+                  Driver: {route.profiles.username}
+                </Text>
+                <View style={styles.cardMeta}>
+                  <Text style={styles.metaText}>{daysLabel(route.schedule_days)}</Text>
+                  <Text style={styles.metaDivider}>·</Text>
+                  <Text style={styles.metaText}>{formatTime(route.departure_time)}</Text>
+                  <Text style={styles.metaDivider}>·</Text>
+                  <Text style={styles.metaText}>±{route.detour_tolerance_km} km</Text>
+                </View>
+                <Pressable
+                  style={[
+                    styles.requestButton,
+                    buttonDisabled && styles.requestButtonDisabled,
+                  ]}
+                  onPress={() => handleRequestRide(route)}
+                  disabled={buttonDisabled}
+                  accessibilityRole="button"
+                  accessibilityLabel={buttonLabel}
+                >
+                  {requestingRouteId === route.id ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.requestButtonText,
+                        buttonDisabled && styles.requestButtonTextDisabled,
+                      ]}
+                    >
+                      {buttonLabel}
+                    </Text>
+                  )}
+                </Pressable>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
     </ScrollView>
@@ -495,7 +601,28 @@ const styles = StyleSheet.create({
   cardOrigin: { fontSize: 14, fontWeight: '600', color: '#1a1a1a' },
   cardArrow: { fontSize: 14, color: '#9ca3af', marginVertical: 2 },
   cardDest: { fontSize: 14, fontWeight: '600', color: '#1a1a1a' },
+  cardDriver: { fontSize: 13, color: '#2563eb', marginTop: 4, marginBottom: 2 },
   cardMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
   metaText: { fontSize: 13, color: '#6b7280' },
   metaDivider: { marginHorizontal: 6, color: '#d1d5db' },
+
+  // Request Ride button
+  requestButton: {
+    marginTop: 14,
+    backgroundColor: '#2563eb',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  requestButtonDisabled: {
+    backgroundColor: '#e5e7eb',
+  },
+  requestButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  requestButtonTextDisabled: {
+    color: '#9ca3af',
+  },
 });

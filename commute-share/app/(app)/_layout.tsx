@@ -42,6 +42,14 @@ export default function AppLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="search-outline" size={size} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="bookings"
+        options={{
+          title: 'My Rides',
+          tabBarLabel: 'My Rides',
+          tabBarIcon: ({ color }) => <Ionicons name="bookmark-outline" size={24} color={color} />,
+        }}
+      />
     </Tabs>
   );
 }
