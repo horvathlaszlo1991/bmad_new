@@ -49,6 +49,17 @@ export async function createRoute(payload: RouteInsert): Promise<Route> {
   return data as Route;
 }
 
+export async function getActiveRoutesForDiscovery(userId: string): Promise<Route[]> {
+  const { data, error } = await supabase
+    .from('routes')
+    .select('*')
+    .eq('status', 'active')
+    .neq('driver_id', userId);
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Route[];
+}
+
 export async function deleteRoute(routeId: string): Promise<void> {
   const { error } = await supabase
     .from('routes')

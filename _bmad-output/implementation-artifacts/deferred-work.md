@@ -65,3 +65,15 @@ blue-check progressive unlock tied to ride count and profile completeness.
 **G2-D-3** — Origin = destination not validated client-side. The Directions API error path handles it (routeError shown, save blocked). Add explicit UX feedback in a later polish pass.
 
 **G2-D-4** — `decodePolyline` does not guard against malformed encoded strings (could produce NaN coordinates). Trust the Directions API for now; add validation if corruption is observed in production.
+
+---
+
+## Implementation-Level Deferred Items (Goal 3 review)
+
+**G3-D-1** — `getActiveRoutesForDiscovery` fetches all active routes with no pagination or `LIMIT`. Supabase PostgREST default cap is 1000 rows. On a large dataset this silently truncates results. Add a geographic pre-filter or server-side bounding-box query when the user base grows beyond ~500 active drivers.
+
+**G3-D-2** — `select('*')` in `getActiveRoutesForDiscovery` fetches all columns including `route_polyline` (potentially large). For production efficiency, project to only the columns needed for matching + display. Acceptable at current scale.
+
+**G3-D-3** — Departure time displayed as-is from PostgreSQL `time` type (timezone-naive). If the app expands beyond Budapest/single-timezone, consider storing as UTC offset or adding timezone context.
+
+**G3-D-4** — `daysLabel` renders `undefined` silently for `schedule_days` values outside 1–7. Add a DB check constraint `CHECK (ALL(d IN schedule_days, d >= 1 AND d <= 7))` in a future migration if direct DB writes become possible.

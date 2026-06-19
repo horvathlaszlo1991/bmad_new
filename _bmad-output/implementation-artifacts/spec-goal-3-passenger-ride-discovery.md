@@ -2,7 +2,8 @@
 title: 'Goal 3 — Passenger Ride Discovery'
 type: 'feature'
 created: '2026-06-15'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: 'a7dd18a57462297f1d1eeb98a74c3cc011bdecd1'
 context: []
 ---
 
@@ -60,11 +61,11 @@ context: []
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/004_routes_rls_passenger.sql` -- CREATE; add `CREATE POLICY "Passengers can discover active routes" ON routes FOR SELECT USING (status = 'active' AND driver_id != auth.uid());` — existing owner-only policy covers driver's own view; new policy covers passenger discovery; Supabase ORs them
-- [ ] `lib/matching.ts` -- CREATE; export `decodePolyline(encoded: string): LatLng[]` (standard Google polyline algorithm: chunks of ASCII chars, offset −63, accumulate zigzag-decoded deltas), `haversineKm(a: LatLng, b: LatLng): number` (Earth radius 6371 km), `minDistanceToPolylineKm(point: LatLng, pts: LatLng[]): number` (min over all pts), `matchesPassengerCorridor(origin: LatLng, dest: LatLng, route: Route): boolean` (both origin and dest within `route.detour_tolerance_km`)
-- [ ] `lib/routes.ts` -- ADD `getActiveRoutesForDiscovery(userId: string): Promise<Route[]>`; query `routes` where `status = 'active'` and `driver_id != userId`; return all columns; throw on Supabase error
-- [ ] `app/(app)/discover/index.tsx` -- CREATE; two Places autocomplete inputs (origin, destination) reusing the fetch pattern from `routes/new.tsx` verbatim; "Search" button disabled until both fields resolved to a `LatLng`; on Search: call `getActiveRoutesForDiscovery`, run `matchesPassengerCorridor` client-side, set results; render four states: loading / error+retry / empty-state / results list; each result card shows: `origin_address → destination_address`, departure time (HH:MM), schedule days (M/Tu/W/Th/F/Sa/Su abbreviation, same as routes list), `detour_tolerance_km` ± label; no tap action on cards
-- [ ] `app/(app)/_layout.tsx` -- ADD third tab: `name="discover"`, `title="Find Rides"`, icon `search-outline` (Ionicons), `headerShown: true`; insert between index and routes tabs or after routes — place after routes
+- [x] `supabase/migrations/004_routes_rls_passenger.sql` -- CREATE; add `CREATE POLICY "Passengers can discover active routes" ON routes FOR SELECT USING (status = 'active' AND driver_id != auth.uid());` — existing owner-only policy covers driver's own view; new policy covers passenger discovery; Supabase ORs them
+- [x] `lib/matching.ts` -- CREATE; export `decodePolyline(encoded: string): LatLng[]` (standard Google polyline algorithm: chunks of ASCII chars, offset −63, accumulate zigzag-decoded deltas), `haversineKm(a: LatLng, b: LatLng): number` (Earth radius 6371 km), `minDistanceToPolylineKm(point: LatLng, pts: LatLng[]): number` (min over all pts), `matchesPassengerCorridor(origin: LatLng, dest: LatLng, route: Route): boolean` (both origin and dest within `route.detour_tolerance_km`)
+- [x] `lib/routes.ts` -- ADD `getActiveRoutesForDiscovery(userId: string): Promise<Route[]>`; query `routes` where `status = 'active'` and `driver_id != userId`; return all columns; throw on Supabase error
+- [x] `app/(app)/discover/index.tsx` -- CREATE; two Places autocomplete inputs (origin, destination) reusing the fetch pattern from `routes/new.tsx` verbatim; "Search" button disabled until both fields resolved to a `LatLng`; on Search: call `getActiveRoutesForDiscovery`, run `matchesPassengerCorridor` client-side, set results; render four states: loading / error+retry / empty-state / results list; each result card shows: `origin_address → destination_address`, departure time (HH:MM), schedule days (M/Tu/W/Th/F/Sa/Su abbreviation, same as routes list), `detour_tolerance_km` ± label; no tap action on cards
+- [x] `app/(app)/_layout.tsx` -- ADD third tab: `name="discover"`, `title="Find Rides"`, icon `search-outline` (Ionicons), `headerShown: true`; insert between index and routes tabs or after routes — place after routes
 
 **Acceptance Criteria:**
 - Given user opens Find Rides tab, when neither field is filled, then Search button is disabled and shows no results
@@ -91,3 +92,42 @@ context: []
 - Enter an origin and destination that overlaps a saved driver route; tap Search — route card should appear
 - Enter an origin/destination that doesn't match anything; tap Search — empty state shown
 - Confirm the dev user's own route (if any) is absent from results
+
+## Suggested Review Order
+
+**Database access control**
+
+- New RLS SELECT policy — gates passenger discovery to active routes only, excludes own
+  [`004_routes_rls_passenger.sql:9`](../../commute-share/supabase/migrations/004_routes_rls_passenger.sql#L9)
+
+**Matching algorithm**
+
+- Entry point: corridor predicate — combines decode + Haversine + tolerance check
+  [`matching.ts:82`](../../commute-share/lib/matching.ts#L82)
+
+- Polyline decoder — standard Google zigzag algorithm, delta-accumulates lat/lng pairs
+  [`matching.ts:12`](../../commute-share/lib/matching.ts#L12)
+
+- Haversine distance — Earth radius 6371 km, used for vertex proximity
+  [`matching.ts:54`](../../commute-share/lib/matching.ts#L54)
+
+**Data fetching**
+
+- `getActiveRoutesForDiscovery` — Supabase query: active routes excluding caller's own
+  [`routes.ts:52`](../../commute-share/lib/routes.ts#L52)
+
+**Discovery screen**
+
+- `handleSearch` — stale-request guard, auth check, fetch + client-side filter
+  [`discover/index.tsx:306`](../../commute-share/app/(app)/discover/index.tsx#L306)
+
+- `fetchSuggestions` — Places API (New) POST autocomplete, same pattern as routes/new.tsx
+  [`discover/index.tsx:36`](../../commute-share/app/(app)/discover/index.tsx#L36)
+
+- Render output — four states: loading / error+retry / empty-state / results cards
+  [`discover/index.tsx:340`](../../commute-share/app/(app)/discover/index.tsx#L340)
+
+**Navigation**
+
+- Third tab registration — `discover` after routes, search-outline icon
+  [`_layout.tsx:36`](../../commute-share/app/(app)/_layout.tsx#L36)
