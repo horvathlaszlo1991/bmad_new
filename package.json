@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "babel-preset-expo": "^56.0.15",
+    "jest": "^30.4.2",
+    "jest-expo": "^56.0.5",
+    "ts-jest": "^29.4.11"
+  }
+}

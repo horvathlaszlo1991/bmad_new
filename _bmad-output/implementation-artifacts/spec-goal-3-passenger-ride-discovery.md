@@ -86,6 +86,7 @@ context: []
 
 **Commands:**
 - `npx tsc --noEmit` -- expected: no errors, clean exit
+- `npm test` -- expected: 23 tests pass (`__tests__/matching.test.ts`)
 
 **Manual checks (if no CLI):**
 - Log in as dev user (role: both); navigate to Find Rides tab — tab should appear in bottom bar

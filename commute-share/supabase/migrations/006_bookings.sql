@@ -13,7 +13,7 @@ create table public.bookings (
                                default 'pending',
   requested_at   timestamptz not null default now(),
   confirmed_at   timestamptz,
-  passenger_note text,
+  passenger_note text
 );
 
 alter table public.bookings enable row level security;

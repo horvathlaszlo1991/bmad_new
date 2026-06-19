@@ -1,4 +1,5 @@
 # Node dependencies
+node_modules/
 commute-share/node_modules/
 
 # Expo build artifacts and cache
