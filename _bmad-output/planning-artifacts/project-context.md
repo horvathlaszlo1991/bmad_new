@@ -28,7 +28,7 @@ Budapest-first launch. Mission-driven, not greed-driven: 5% platform cut, no sur
 | BaaS | Supabase | Auth, PostgreSQL + RLS, file storage |
 | Maps | Google Maps via `react-native-maps` | Goal 2+ |
 | Payments | Stripe | Goal 5 |
-| Testing | `npx expo start --web` | Browser-based during development |
+| Testing | Jest + ts-jest (`npm test`) | Unit tests for pure logic; browser-based for UI |
 
 **App folder:** `commute-share/` in project root
 
@@ -38,8 +38,10 @@ Budapest-first launch. Mission-driven, not greed-driven: 5% platform cut, no sur
 |---|---|---|---|
 | 1 | User auth & verification | **Done** | `_bmad-output/implementation-artifacts/spec-user-auth-verification.md` |
 | 2 | Driver route setup | **Done** | `_bmad-output/implementation-artifacts/spec-goal-2-driver-route-setup.md` |
-| 3 | Passenger ride discovery | Deferred | `_bmad-output/implementation-artifacts/deferred-work.md` |
-| 4 | Ride booking & scheduling | Deferred | `_bmad-output/implementation-artifacts/deferred-work.md` |
+| 3 | Passenger ride discovery | **Done** | `_bmad-output/implementation-artifacts/spec-goal-3-passenger-ride-discovery.md` |
+| 4a | Booking request flow | **Done** | `_bmad-output/implementation-artifacts/spec-goal-4a-booking-request-flow.md` |
+| 4b | Cancellation & no-show | Deferred | `_bmad-output/implementation-artifacts/deferred-work.md` |
+| 4c | Trusted-pair & deposit | Deferred | `_bmad-output/implementation-artifacts/deferred-work.md` |
 | 5 | Payment system | Deferred | `_bmad-output/implementation-artifacts/deferred-work.md` |
 | 6 | Communication & safety | Deferred | `_bmad-output/implementation-artifacts/deferred-work.md` |
 | 7 | Ratings & reputation | Deferred | `_bmad-output/implementation-artifacts/deferred-work.md` |
@@ -71,6 +73,20 @@ Budapest-first launch. Mission-driven, not greed-driven: 5% platform cut, no sur
 - **Soft-delete:** `deleteRoute` sets `status='deleted'`; list queries filter `.neq('status','deleted')`. Hard delete deferred.
 - **Key file: `commute-share/lib/routes.ts`** — `fetchRouteDetails` returns `{ polyline, durationMin }` used by both the form preview and Goal 3 matching.
 
+## Goal 4a — Booking Request Flow Design Decisions
+
+**Completed 2026-06-19 (commit 5f7d33f):**
+
+- **Goal 4 slicing:** Split into 4a (booking request flow), 4b (cancellation windows + no-show), 4c (trusted-pair fast-track + deposit). Each slice is independently shippable.
+- **Username immutability:** Enforced by a PostgreSQL BEFORE UPDATE trigger (`005_username_immutable.sql`). Raises exception if `NEW.username IS DISTINCT FROM OLD.username`. DB-layer only — cannot be bypassed by app code or direct SQL.
+- **`driver_id` on bookings:** Denormalized for RLS efficiency. A BEFORE INSERT trigger derives it server-side from `routes.driver_id` — client-supplied value is overridden, preventing spoofing.
+- **Partial unique index:** `UNIQUE(route_id, passenger_id) WHERE status NOT IN ('declined','cancelled')` — allows passengers to re-request a seat after being declined (plain UNIQUE would permanently block re-requests).
+- **`confirmed_at`:** Set by a BEFORE UPDATE trigger (`now()`) when status transitions to `confirmed`. Never set by the client to avoid clock skew.
+- **Status transition guard:** `respondToBooking` adds `.eq('status','pending')` filter — a driver cannot re-overwrite a settled booking even with a stale UI call.
+- **Booking map pattern:** `getMyBookingsAsPassenger` called once per search (parallel with route discovery), results stored in a `Map<route_id, status>` for O(1) per-card lookup. No per-card queries.
+- **My Rides screen:** Segmented Passenger / Driver view. Driver segment hidden for `role = passenger`. Driver tab shows only `status = pending` requests (accepted/declined are terminal and visible to passenger only).
+- **Key files:** `lib/bookings.ts` (all booking CRUD + pure `validateBookingRequest`), `app/(app)/bookings/index.tsx` (My Rides), `app/(app)/discover/index.tsx` (updated with driver username + request button).
+
 ## Key Product Decisions from Brainstorming
 
 (Full session: `_bmad-output/brainstorming/brainstorming-session-2026-06-11-1400.md`)
@@ -87,5 +103,6 @@ Budapest-first launch. Mission-driven, not greed-driven: 5% platform cut, no sur
 
 Using `bmad-quick-dev` skill for incremental implementation.
 Each goal goes through: clarify → spec → implement → 3-reviewer review → present.
+Tests (Jest unit tests for all new pure logic) are required as part of every goal's definition of done.
 
 Current sprint tracker: `_bmad-output/implementation-artifacts/sprint-status.yaml`

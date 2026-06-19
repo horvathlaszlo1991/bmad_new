@@ -108,6 +108,22 @@ Jest is configured (`jest.config.js`, `ts-jest`, `node` environment). Run with `
 
 **Testing requirement (from Goal 3 onward): every implementation goal must include unit tests for all new pure logic (lib/ functions, utilities, algorithms).** Tests are part of the definition of done and must pass before a goal is marked complete.
 
+**Goal 4a (Booking Request Flow) is complete.** Driver username on result cards, "Request Ride" CTA, `bookings` table with full RLS, My Rides screen (Passenger + Driver segments), username immutability enforced at DB layer — all implemented, reviewed (3-reviewer loop, 9 patches), and committed.
+
+Full spec: `_bmad-output/implementation-artifacts/spec-goal-4a-booking-request-flow.md` (status: done, commit: 5f7d33f)
+
+Key additions:
+- `supabase/migrations/005_username_immutable.sql` — BEFORE UPDATE trigger: `username` cannot be changed after creation (applied to Supabase)
+- `supabase/migrations/006_bookings.sql` — `bookings` table, 4 RLS policies, partial unique index allowing re-request after declined, BEFORE INSERT trigger derives `driver_id` server-side, BEFORE UPDATE trigger sets `confirmed_at` (applied to Supabase)
+- `lib/routes.ts` — `RouteWithDriver` type; `getActiveRoutesForDiscovery` now joins `profiles!driver_id(username)`
+- `lib/bookings.ts` — `validateBookingRequest` (pure), `createBookingRequest`, `getMyBookingsAsPassenger`, `getPendingRequestsForDriver`, `respondToBooking` (guarded with `.eq('status','pending')`)
+- `app/(app)/discover/index.tsx` — driver username on cards, 4-state request button (Request Ride / Pending / Confirmed / Request Again)
+- `app/(app)/bookings/index.tsx` — My Rides screen; Passenger tab shows all bookings with status badges; Driver tab shows pending requests with Accept/Decline
+- `app/(app)/_layout.tsx` — 4th tab added (`bookmark-outline`, "My Rides")
+- `__tests__/bookings.test.ts` — 6 unit tests for `validateBookingRequest` (29 total, all passing)
+
+**Goal 4 is split into slices:** 4a (done), 4b (cancellation windows + no-show, deferred), 4c (trusted-pair fast-track + deposit, deferred).
+
 ## Planning Artifacts
 
 `_bmad-output/planning-artifacts/project-context.md` — product vision, target audience, full tech stack, all 7 implementation goals with status.  

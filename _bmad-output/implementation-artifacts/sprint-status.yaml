@@ -1,22 +1,44 @@
 # Sprint / Goal Status Tracker
-# Updated: 2026-06-15
+# Updated: 2026-06-19
 
-current_goal: 3
-current_goal_title: "Passenger ride discovery"
-workflow_step: "ready-for-dev"
-workflow_position: "Spec approved — implementation not yet started"
+current_goal: 4
+current_goal_title: "Ride booking & scheduling"
+workflow_step: "4a-complete"
+workflow_position: "Goal 4a complete — Goal 4b (cancellation & no-show) spec not yet started"
 
-last_completed_goal: 2
-last_completed_goal_title: "Driver Route Setup — Google Maps integration, corridor definition"
-last_completed_spec: "_bmad-output/implementation-artifacts/spec-goal-2-driver-route-setup.md"
+last_completed_goal: "4a"
+last_completed_goal_title: "Booking Request Flow — driver identity, bookings table, My Rides screen"
+last_completed_spec: "_bmad-output/implementation-artifacts/spec-goal-4a-booking-request-flow.md"
 spec_status: "done"
 
-# Goal 3 spec
-current_spec: "_bmad-output/implementation-artifacts/spec-goal-3-passenger-ride-discovery.md"
-current_spec_status: "ready-for-dev"
-
-# What is done for Goal 2
+# What is done for Goal 4a
 completed:
+  - "supabase/migrations/005_username_immutable.sql — BEFORE UPDATE trigger preventing username change (applied to Supabase)"
+  - "supabase/migrations/006_bookings.sql — bookings table, 4 RLS policies, partial unique index, driver_id server-derive trigger, confirmed_at trigger (applied to Supabase)"
+  - "lib/routes.ts — RouteWithDriver type; getActiveRoutesForDiscovery joins profiles!driver_id(username)"
+  - "lib/bookings.ts — validateBookingRequest (pure), createBookingRequest, getMyBookingsAsPassenger, getPendingRequestsForDriver, respondToBooking"
+  - "app/(app)/discover/index.tsx — driver username on cards, 4-state request button, optimistic update with status-preserving rollback"
+  - "app/(app)/bookings/index.tsx — My Rides screen; Passenger tab (all bookings + status badges) + Driver tab (pending requests + Accept/Decline)"
+  - "app/(app)/_layout.tsx — 4th tab: bookings (bookmark-outline, My Rides)"
+  - "3-reviewer review loop completed — 9 patches applied"
+  - "__tests__/bookings.test.ts — 6 unit tests for validateBookingRequest (29 total, all passing)"
+  - "npx tsc --noEmit passes clean"
+  - "Committed as 5f7d33f"
+
+# What is done for Goal 3
+goal_3_completed:
+  - "supabase/migrations/004_routes_rls_passenger.sql — passenger SELECT RLS policy (applied to Supabase)"
+  - "lib/matching.ts — decodePolyline, haversineKm, minDistanceToPolylineKm, matchesPassengerCorridor"
+  - "lib/routes.ts — getActiveRoutesForDiscovery(userId)"
+  - "app/(app)/discover/index.tsx — Find Rides screen, four render states, stale-request guard"
+  - "app/(app)/_layout.tsx — third tab (search-outline icon)"
+  - "3-reviewer review loop completed — 3 patches applied"
+  - "__tests__/matching.test.ts — 23 unit tests, all passing (npm test)"
+  - "npx tsc --noEmit passes clean"
+  - "Committed as 854bf79 (implementation) + 37b673e (tests)"
+
+# What was done for Goal 2
+goal_2_completed:
   - "Supabase migration 003_routes.sql — routes table with RLS (owner-only CRUD)"
   - "lib/routes.ts — getMyRoutes, createRoute, deleteRoute (soft-delete), fetchRouteDetails"
   - "app.config.js — dynamic Expo config injecting EXPO_PUBLIC_GOOGLE_MAPS_API_KEY at build time"
@@ -70,8 +92,18 @@ blocked: []
 
 # What comes next
 next_steps:
-  - "Implement Goal 3 — run /bmad-quick-dev, it will detect the ready-for-dev spec and route to step-03 (implement)"
-  - "Goal 3 tasks in order: 004 migration → lib/matching.ts → lib/routes.ts → discover/index.tsx → _layout.tsx"
+  - "Start Goal 4b (Cancellation & no-show) — cancellation windows (12h free / last 2-3h penalised), no-show handling, status transitions"
+  - "Start Goal 4c (Trusted-pair & deposit) — fast-track one-tap rebooking after N rides, deposit hold logic"
+  - "Both 4b and 4c depend on 4a (bookings table) which is now done"
+
+# Testing requirements (from Goal 3 onward)
+testing:
+  runner: "Jest + ts-jest (npm test)"
+  config: "commute-share/jest.config.js — testEnvironment: node, no jest-expo preset; __DEV__ global set; expo-secure-store + react-native stubs"
+  existing_suites:
+    - "__tests__/matching.test.ts — 23 tests for lib/matching.ts"
+    - "__tests__/bookings.test.ts — 6 tests for lib/bookings.ts (validateBookingRequest)"
+  requirement: "Every goal must include unit tests for all new pure logic (lib/ functions, utilities, algorithms). Tests must pass (npm test) before a goal is marked complete."
 
 # Key decisions (Goals 1+2)
 key_decisions:
@@ -92,11 +124,26 @@ goal_3_decisions:
   - "New RLS policy on routes: USING (status = 'active' AND driver_id != auth.uid()) — ORed with existing owner policy"
   - "Find Rides tab added as third tab (search-outline icon); placed after Routes tab"
 
+# Key decisions (Goal 4a spec — locked in spec-goal-4a-booking-request-flow.md)
+goal_4a_decisions:
+  - "Goal 4 split into 4a (booking request), 4b (cancellation), 4c (trusted-pair/deposit)"
+  - "username immutability: BEFORE UPDATE trigger raises exception — enforced at DB layer, not app layer"
+  - "driver_id on bookings: BEFORE INSERT trigger derives from routes.driver_id server-side — client value ignored (prevents spoofing)"
+  - "Partial unique index: UNIQUE(route_id, passenger_id) WHERE status NOT IN ('declined','cancelled') — allows re-request after decline"
+  - "confirmed_at: set by BEFORE UPDATE trigger (server now()) not client clock"
+  - "respondToBooking guards with .eq('status','pending') — prevents re-overwriting settled bookings"
+  - "Booking map built once per search from parallel load — O(1) per-card status lookup"
+  - "4th tab: bookings screen (bookmark-outline, My Rides); Driver tab hidden for role=passenger"
+  - "Driver view in My Rides shows only status=pending requests; confirmed/declined visible in passenger view"
+
 # Deferred goals
 deferred:
-  - goal: 4
-    title: "Ride booking & scheduling"
-    notes: "Recurring + ad-hoc, trusted-pair fast-track, deposits, cancellation windows"
+  - goal: "4b"
+    title: "Cancellation & no-show"
+    notes: "Cancellation windows (12h free / last 2-3h penalised), no-show handling, status transitions"
+  - goal: "4c"
+    title: "Trusted-pair & deposit"
+    notes: "Fast-track one-tap rebooking after N successful rides, deposit hold logic (pre-payment)"
   - goal: 5
     title: "Payment system"
     notes: "Stripe, wallet, 5% cut, multi-passenger discount"
