@@ -124,6 +124,17 @@ Key additions:
 
 **Goal 4 is split into slices:** 4a (done), 4b (cancellation windows + no-show, deferred), 4c (trusted-pair fast-track + deposit, deferred).
 
+## Goal Completion Checklist
+
+After every completed goal (or any similarly significant change), always perform these steps in order before finishing:
+
+1. `npm test` — all tests must pass.
+2. Write new unit tests for any new pure logic added (lib/ functions, utilities, algorithms).
+3. Update `CLAUDE.md` with the goal's completion block, key additions, and commit hash.
+4. Update `_bmad-output/implementation-artifacts/sprint-status.yaml` — current position, completed items, key decisions, next steps.
+5. Update `_bmad-output/planning-artifacts/project-context.md` — goals table and design decisions section.
+6. Create a git commit with all changes.
+
 ## Planning Artifacts
 
 `_bmad-output/planning-artifacts/project-context.md` — product vision, target audience, full tech stack, all 7 implementation goals with status.  
