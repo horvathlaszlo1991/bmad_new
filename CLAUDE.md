@@ -128,8 +128,8 @@ Key additions:
 
 After every completed goal (or any similarly significant change), always perform these steps in order before finishing:
 
-1. `npm test` — all tests must pass.
-2. Write new unit tests for any new pure logic added (lib/ functions, utilities, algorithms).
+1. Write new unit tests for any new pure logic added (lib/ functions, utilities, algorithms).
+2. `npm test` — all tests (existing + new) must pass.
 3. Update `CLAUDE.md` with the goal's completion block, key additions, and commit hash.
 4. Update `_bmad-output/implementation-artifacts/sprint-status.yaml` — current position, completed items, key decisions, next steps.
 5. Update `_bmad-output/planning-artifacts/project-context.md` — goals table and design decisions section.
